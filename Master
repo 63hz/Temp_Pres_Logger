@@ -1,0 +1,102 @@
+#include <Wire.h>
+#include <SPI.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BME280.h>
+#include <SD.h>
+#include "RTClib.h"
+
+#if defined(ARDUINO_ARCH_SAMD)
+// for Zero, output on USB Serial console, remove line below if using programming port to program the Zero!
+   #define Serial SerialUSB
+#endif
+
+#define BME_SCK 13
+#define BME_MISO 12
+#define BME_MOSI 11
+#define BME_CS 10
+const int chipSelect = 10;
+
+RTC_DS1307 rtc;
+
+#define SEALEVELPRESSURE_HPA (1019.50)
+Adafruit_BME280 bme; // I2C
+//Adafruit_BME280 bme(BME_CS); // hardware SPI
+//Adafruit_BME280 bme(BME_CS, BME_MOSI, BME_MISO,  BME_SCK);
+
+
+#define SAMPLE_DELAY 1000 // Defines delay between samples in milliseconds
+
+
+
+void setup() {
+  Serial.begin(9600);
+  // put your setup code here, to run once:
+  if (!bme.begin()) {
+    Serial.println("Could not find a valid BME280 sensor, check wiring!");
+    while (1);
+  }
+  Serial.print("Initializing SD card...");
+    // see if the card is present and can be initialized:
+  if (!SD.begin(chipSelect)) {
+    Serial.println("Card failed, or not present");
+    // don't do anything more:
+    return;
+  }
+  Serial.println("card initialized.");
+
+}
+void loop() {
+  
+  String dataString = "";
+  DateTime now = rtc.now();
+
+  //adds timestamp to data string
+  if (now.hour()<10)
+  {
+    dataString += "0";
+  }
+  dataString += String(now.hour());
+  dataString += ":";
+  if (now.minute()<10)
+  {
+    dataString += "0";
+  }
+  dataString += String(now.minute());
+  dataString += ":";
+  if (now.second()<10)
+  {
+    dataString += "0";
+  }  
+  dataString += String(now.second());
+  dataString += ",";
+  
+  
+  //Adds Temp/humidity data to data string
+  double reading = bme.readTemperature()*9.0/5+32;
+  dataString += String(reading);
+  dataString += ",";
+//  reading = bme.readPressure()/100.F;
+ // dataString += String(reading);
+ // dataString += ",";
+  reading = bme.readHumidity();
+  dataString += String(reading);
+ 
+
+  
+
+ File dataFile = SD.open("datalog.txt", FILE_WRITE);
+
+  // if the file is available, write to it:
+  if (dataFile) {
+    dataFile.println(dataString);
+    dataFile.close();
+    // print to the serial port too:
+    Serial.println(dataString);
+  }
+  // if the file isn't open, pop up an error:
+  else {
+    Serial.println("error opening datalog.txt");
+  }    
+  delay(SAMPLE_DELAY);
+}
+
